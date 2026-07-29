@@ -879,6 +879,30 @@ wireshark
 vmware-hgfsclient
 ```
 
+```bash
+# Creates the mount point directory where VMware Shared Folders will be accessed.
+# /mnt/hgfs is the standard location used for VMware shared folder mounts.
+sudo mkdir -p /mnt/hgfs
+
+
+# Mounts VMware Shared Folders from the host machine into Kali Linux.
+# .host:/ tells Kali to access shared folders configured in VMware.
+# /mnt/hgfs is where those folders become accessible.
+# -o allow_other allows other users/processes to access the mounted folder.
+sudo vmhgfs-fuse .host:/ /mnt/hgfs -o allow_other
+
+
+# Verifies that the VMware Shared Folder was successfully mounted.
+# Output showed "Snapshots", confirming that the host folder was accessible from Kali.
+ls /mnt/hgfs/
+
+
+# Copies the screenshot from Kali's local Pictures directory
+# into the VMware Shared Folder named Snapshots.
+# This transferred the file from the Kali VM to the host PC folder.
+cp ~/Pictures/wireshark-arp-icmp-analysis.png /mnt/hgfs/Snapshots/
+```
+
 ---
 
 # Interview Questions
