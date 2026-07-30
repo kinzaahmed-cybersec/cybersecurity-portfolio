@@ -973,3 +973,664 @@ Completed:
 ✅ Used Wireshark for packet analysis
 ✅ Interpreted ICMP traffic
 
+
+# Lab 2 Notes: Network Discovery & Enumeration with Nmap
+
+> **Objective:** Learn how to discover hosts, enumerate services, fingerprint operating systems, and interpret Nmap results from a SOC Level 1 analyst's perspective.
+
+---
+
+# What is Nmap?
+
+Nmap (Network Mapper) is a network reconnaissance tool used to discover what a **remote machine exposes** to the network.
+
+It helps answer questions such as:
+
+- Which hosts are alive?
+- Which ports are open?
+- Which services are listening?
+- Which operating system is likely running?
+
+### Important
+
+Nmap shows the **outside view** of a target.
+
+It **does not** show:
+
+- Running processes
+- Outbound connections
+- Which application owns a connection
+- Internal system information
+
+For those, endpoint tools such as **netstat**, **PowerShell**, **Task Manager**, or an **EDR** are used.
+
+---
+
+# Mental Model
+
+Think of a computer as an apartment building.
+
+- Computer = Building
+- Ports = Apartment doors
+- Services = People inside the apartments
+- Nmap = Someone knocking on every door to see who answers
+
+Nmap only discovers services **waiting for incoming connections**.
+
+---
+
+# Host Discovery
+
+Command:
+
+```bash
+nmap -sn 192.168.16.0/24
+```
+
+## Purpose
+
+Discover live hosts without scanning ports.
+
+The `-sn` option performs **Ping Scan (Host Discovery)**.
+
+It identifies:
+
+- Live devices
+- Their IP addresses
+- MAC addresses (on local networks)
+- Vendor information (when available)
+
+---
+
+## Hosts Found in Lab
+
+| IP Address | Device |
+|------------|---------|
+|192.168.16.1|VMware Virtual Network|
+|192.168.16.2|VMware NAT Gateway|
+|192.168.16.130|Kali Linux|
+|192.168.16.131|Windows 11 VM|
+|192.168.16.254|VMware DHCP Server|
+
+### SOC Insight
+
+Vendor information helps identify:
+
+- VMware
+- Cisco
+- Dell
+- HP
+- Apple
+
+This can quickly reveal virtual infrastructure during investigations.
+
+---
+
+# Default Port Scan
+
+Command
+
+```bash
+nmap 192.168.16.131
+```
+
+## Purpose
+
+Scans the **top 1000 most common TCP ports**.
+
+Fast reconnaissance.
+
+---
+
+## Open Ports Found
+
+| Port | Service | Purpose | SOC Importance |
+|------|----------|----------|---------------|
+|135|MSRPC|Remote Procedure Call|Core Windows service used for remote management. Frequently seen in enterprise environments.|
+|139|NetBIOS Session Service|Legacy Windows file/printer sharing|Older protocol largely replaced by SMB over TCP, but still encountered.|
+|445|SMB (Microsoft-DS)|Windows file sharing|Very high-value attack target. Used in lateral movement, ransomware, pass-the-hash, and EternalBlue-style attacks.|
+|5357|HTTPAPI / WSDAPI|Web Services for Devices|Used for device discovery and management in Windows.|
+
+---
+
+# Open vs Closed vs Filtered Ports
+
+### Open
+
+A service is actively listening.
+
+Example:
+
+```
+445/tcp open microsoft-ds
+```
+
+The machine accepted the connection.
+
+---
+
+### Closed
+
+No service is listening.
+
+The machine replies saying:
+
+> "Nothing is running here."
+
+---
+
+### Filtered
+
+The firewall silently discards packets.
+
+No reply is received.
+
+Example:
+
+```
+996 filtered tcp ports
+```
+
+Meaning:
+
+Nmap sent probes.
+
+Windows Firewall dropped them.
+
+Nmap therefore labels them as **filtered**.
+
+---
+
+# Why Port 445 Matters
+
+SMB (Server Message Block)
+
+Purpose:
+
+- File sharing
+- Printer sharing
+- Windows administration
+
+Common attack vectors:
+
+- WannaCry
+- EternalBlue
+- Pass-the-Hash
+- Lateral Movement
+- SMB Brute Force
+
+### SOC Relevance
+
+Monitor SMB for:
+
+- Excessive authentication failures
+- Unusual file access
+- Lateral movement
+- Suspicious SMB sessions
+
+---
+
+# Service Fingerprinting
+
+Command
+
+```bash
+nmap -sV 192.168.16.131
+```
+
+## Purpose
+
+Identify the software running behind open ports.
+
+Instead of only reporting:
+
+```
+135 open
+```
+
+Nmap attempts to identify:
+
+```
+Microsoft Windows RPC
+```
+
+---
+
+## Services Identified
+
+| Port | Service |
+|------|----------|
+|135|Microsoft Windows RPC|
+|139|Microsoft Windows NetBIOS|
+|5357|Microsoft HTTPAPI 2.0|
+
+---
+
+## Why SMB Version Wasn't Identified
+
+Output:
+
+```
+445/tcp open microsoft-ds?
+```
+
+The `?` means Nmap couldn't confidently identify the exact SMB version.
+
+Possible reasons:
+
+- Firewall restrictions
+- Limited fingerprint information
+- SMB negotiation requires additional communication
+- Version intentionally hidden
+
+### SOC Takeaway
+
+Even without the exact version, knowing **SMB exists** is already valuable during investigations.
+
+---
+
+# Unknown Services
+
+Full scan discovered:
+
+```
+5040/tcp
+49668/tcp
+```
+
+shown as:
+
+```
+unknown
+```
+
+This **does not** mean the ports are unknown.
+
+It means Nmap couldn't determine **which application** was listening.
+
+Possible reasons:
+
+- Custom application
+- Rare service
+- Service hides its identity
+- No matching fingerprint
+
+---
+
+## How SOC Analysts Identify Unknown Services
+
+Nmap provides an external view.
+
+Endpoint tools provide the answer.
+
+Examples:
+
+Windows
+
+```cmd
+netstat -abno
+```
+
+or
+
+```powershell
+Get-NetTCPConnection
+```
+
+These reveal:
+
+- Process name
+- PID
+- Local port
+- Remote connection
+- Listening status
+
+In enterprise environments, EDR/SIEM telemetry often provides this information automatically.
+
+---
+
+# Full Port Scan
+
+Command
+
+```bash
+nmap -p- 192.168.16.131
+```
+
+## Purpose
+
+Scan **all 65,535 TCP ports**.
+
+---
+
+## Default vs Full Scan
+
+### Default Scan
+
+- Top 1000 TCP ports
+- Faster
+- May miss uncommon services
+
+---
+
+### Full Scan
+
+- All 65,535 ports
+- Slower
+- Finds uncommon services
+
+### SOC Insight
+
+Use:
+
+- Default scan for quick reconnaissance.
+- Full scan when deeper enumeration is required.
+
+---
+
+# OS Fingerprinting
+
+Command
+
+```bash
+sudo nmap -O 192.168.16.131
+```
+
+## Purpose
+
+Infer the operating system by analyzing TCP/IP behavior.
+
+Nmap compares responses to a fingerprint database.
+
+It **does not** read the OS directly.
+
+---
+
+## Why Multiple Windows Versions Appeared
+
+Example:
+
+- Windows 11
+- Windows 10
+- Windows Server
+
+Many Microsoft operating systems behave similarly on the network.
+
+Nmap therefore reports confidence scores.
+
+Example:
+
+```
+Windows 11 (96%)
+```
+
+Meaning:
+
+Windows 11 is the **best match**, not a certainty.
+
+---
+
+## Warning Explained
+
+```
+OSScan results may be unreliable...
+```
+
+For accurate fingerprinting, Nmap prefers:
+
+- At least one open port
+- At least one closed port
+
+Windows Firewall filtered most ports instead of replying "closed."
+
+Less information = less confidence.
+
+---
+
+# Network Distance
+
+Output:
+
+```
+1 hop
+```
+
+Meaning:
+
+Target is one network device away.
+
+Example:
+
+```
+Kali
+↓
+
+VMware NAT
+
+↓
+
+Windows
+```
+
+---
+
+# Aggressive Scan
+
+Command
+
+```bash
+sudo nmap -A 192.168.16.131
+```
+
+## Includes
+
+- Service Detection
+- Version Detection
+- OS Detection
+- Default NSE Scripts
+- Traceroute
+
+---
+
+## Additional Information Found
+
+- NetBIOS hostname
+- SMB security mode
+- HTTP headers
+- Traceroute
+- SMB time
+
+Example:
+
+```
+Hostname:
+WIN11_SOC
+```
+
+Example:
+
+```
+SMB 3.1.1
+
+Message signing enabled and required
+```
+
+### SOC Insight
+
+Aggressive scans provide richer information but generate significantly more traffic and are more detectable.
+
+Use only on authorized systems.
+
+---
+
+# Nmap vs Endpoint Tools
+
+## Nmap
+
+Shows:
+
+- Open ports
+- Listening services
+- Service versions
+- OS guess
+
+Perspective:
+
+**Outside the machine**
+
+---
+
+## Endpoint Tools
+
+Examples:
+
+```cmd
+netstat -abno
+```
+
+Show:
+
+- Running processes
+- Outbound connections
+- Listening ports
+- PIDs
+- Established sessions
+
+Perspective:
+
+**Inside the machine**
+
+---
+
+# Listening Services vs Outbound Connections
+
+This distinction is critical.
+
+### Nmap Finds
+
+Services waiting for incoming connections.
+
+Example:
+
+```
+Windows VM
+
+445 (SMB)
+
+Listening
+```
+
+---
+
+### Nmap Does NOT Show
+
+Example:
+
+```
+Edge
+
+↓
+
+NetMirror Website
+```
+
+Because Edge is the **client**, not the server.
+
+The listening service belongs to the **NetMirror server**, not your Windows VM.
+
+---
+
+## Simplified Rule
+
+Nmap asks:
+
+> "What are you offering to the network?"
+
+It does **not** ask:
+
+> "What websites are you connected to?"
+
+---
+
+# Common SOC Use Cases
+
+Nmap helps with:
+
+- Asset discovery
+- Attack surface mapping
+- Service identification
+- Exposure assessment
+- Security validation
+- Investigation support
+
+---
+
+# Interview Nuggets
+
+- Nmap discovers **what a remote machine exposes**, not what it consumes.
+- Service fingerprinting identifies applications.
+- OS fingerprinting estimates the operating system.
+- Fingerprinting is an **inference**, not proof.
+- Default scans are fast.
+- Full scans are comprehensive.
+- Aggressive scans generate more network traffic.
+- SMB (445) is one of the most targeted Windows services.
+
+---
+
+# Commands Cheat Sheet
+
+Host Discovery
+
+```bash
+nmap -sn 192.168.16.0/24
+```
+
+Default Scan
+
+```bash
+nmap 192.168.16.131
+```
+
+Service Detection
+
+```bash
+nmap -sV 192.168.16.131
+```
+
+Full Scan
+
+```bash
+nmap -p- 192.168.16.131
+```
+
+OS Detection
+
+```bash
+sudo nmap -O 192.168.16.131
+```
+
+Aggressive Scan
+
+```bash
+sudo nmap -A 192.168.16.131
+```
+
+Multiple Host Discovery
+
+```bash
+nmap -sn 192.168.16.130 192.168.16.131
+```
+
+---
+
+# Key Takeaways
+
+- Nmap provides an **external perspective** of a target.
+- Endpoint tools provide an **internal perspective**.
+- Ports represent communication endpoints where services listen.
+- Service fingerprinting identifies software behind open ports.
+- OS fingerprinting estimates the operating system from network behavior.
+- Default scans trade depth for speed.
+- Full scans trade speed for completeness.
+- Understanding **what a host offers** versus **what it consumes** is fundamental to networking and SOC investigations.
