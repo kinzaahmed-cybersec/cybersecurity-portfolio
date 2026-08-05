@@ -120,3 +120,12 @@ This investigation highlighted the importance of rapid incident response, user a
 | **Figure 1** | Malicious Telegram notification received by multiple contacts. |
 | **Figure 2** | Telegram security notification indicating three unauthorized login sessions. |
 | **Figure 3** | Devices page after containment showing only the legitimate device remained logged in. |
+
+### 1. Malicious Telegram Spam Notification
+![Telegram Spam Notification](screenshots/telegram-spam-notification.jpeg)
+
+### 2. Telegram Security Alert Showing Unauthorized Logins
+![Unauthorized Logins](screenshots/unauthorized-logins.jpeg)
+
+### 3. Devices After Containment
+![Devices After Containment](screenshots/devices-after-containment.jpeg)
