@@ -1,4 +1,4 @@
-# Lab 1: Windows Authentication Investigation
+# Lab 3: Windows Authentication Investigation
 
 ## Objective
 
@@ -187,3 +187,23 @@ before determining whether authentication activity is normal or suspicious.
 - Source IP interpretation
 - Event correlation
 - Basic SOC triage
+
+- ---
+
+## Evidence / Screenshots
+
+### Event ID 4624 - Successful Logon
+
+![Event ID 4624](./Event%20ID%204624.png)
+
+### Event ID 4625 - Failed Logon
+
+![Event ID 4625](./Event%20ID%204625.png)
+
+### Event ID 4634 - Successful Logoff
+
+![Event ID 4634](./Event%20ID%204634.png)
+
+### Event ID 4648 - Explicit Credential Use
+
+![Event ID 4648](./Event%20ID%204648.png)
