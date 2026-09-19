@@ -252,5 +252,10 @@ A registry persistence mechanism combined with unexpected process execution woul
 
 ## Evidence / Screenshots
 
-1. `Registry_runonce_key_entry.png`
-2. `4688_notepad.exe_process_execution.png`
+### RunOnce Registry Persistence
+
+![RunOnce Registry Key Entry](./Registry_runonce_key_entry.png)
+
+### Process Execution
+
+![4688 Notepad Process Execution](./4688_notepad.exe_process_execution.png)
