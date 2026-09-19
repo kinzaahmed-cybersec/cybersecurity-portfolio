@@ -1,4 +1,4 @@
-# Lab 3 — Windows Process & Persistence Investigation
+# Lab 5 — Windows Process & Persistence Investigation
 
 ## Objective
 
